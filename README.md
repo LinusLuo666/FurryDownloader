@@ -28,6 +28,10 @@
 
 如果 XML 文件损坏，程序会尝试生成同名 `.bak` 备份，并从空列表或空索引继续运行，不会删除已经下载的图片。
 
+## 运行发布版
+
+请从完整的 `bin\Release` 文件夹运行程序，不要只单独复制 `FurryDownloader.exe`；同目录下的 WebView2、资源和 .NET 依赖 DLL 也必须保留。运行环境需要安装 .NET Framework 4.8 和 Microsoft Edge WebView2 Runtime。
+
 -----------
 
 引用代码：[HttpHelper.cs](http://www.sufeinet.com/thread-3-1-1.html)
