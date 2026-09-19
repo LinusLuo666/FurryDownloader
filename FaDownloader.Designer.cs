@@ -77,9 +77,9 @@
             info_name.Size = new System.Drawing.Size(235, 24);
             info_name.TabIndex = 0;
             info_name.Text = "添加画师到列表：";
-            // 
+            //
             // artistListLabel
-            // 
+            //
             artistListLabel.AutoSize = true;
             artistListLabel.Font = new System.Drawing.Font("楷体", 13.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
             artistListLabel.Location = new System.Drawing.Point(680, 8);
@@ -133,9 +133,9 @@
             this.ButtonEnter.UseVisualStyleBackColor = true;
             this.ButtonEnter.Visible = false;
             this.ButtonEnter.Click += new System.EventHandler(this.ButtonStart_Click);
-            // 
+            //
             // ButtonAddArtist
-            // 
+            //
             this.ButtonAddArtist.Location = new System.Drawing.Point(680, 280);
             this.ButtonAddArtist.Name = "ButtonAddArtist";
             this.ButtonAddArtist.Size = new System.Drawing.Size(105, 35);
@@ -143,9 +143,9 @@
             this.ButtonAddArtist.Text = "添加";
             this.ButtonAddArtist.UseVisualStyleBackColor = true;
             this.ButtonAddArtist.Click += new System.EventHandler(this.ButtonAddArtist_Click);
-            // 
+            //
             // ButtonRemoveArtist
-            // 
+            //
             this.ButtonRemoveArtist.Location = new System.Drawing.Point(795, 280);
             this.ButtonRemoveArtist.Name = "ButtonRemoveArtist";
             this.ButtonRemoveArtist.Size = new System.Drawing.Size(105, 35);
@@ -153,9 +153,9 @@
             this.ButtonRemoveArtist.Text = "删除";
             this.ButtonRemoveArtist.UseVisualStyleBackColor = true;
             this.ButtonRemoveArtist.Click += new System.EventHandler(this.ButtonRemoveArtist_Click);
-            // 
+            //
             // ButtonUpdateList
-            // 
+            //
             this.ButtonUpdateList.Location = new System.Drawing.Point(680, 325);
             this.ButtonUpdateList.Name = "ButtonUpdateList";
             this.ButtonUpdateList.Size = new System.Drawing.Size(220, 45);
@@ -163,18 +163,18 @@
             this.ButtonUpdateList.Text = "更新列表";
             this.ButtonUpdateList.UseVisualStyleBackColor = true;
             this.ButtonUpdateList.Click += new System.EventHandler(this.ButtonUpdateList_Click);
-            // 
+            //
             // artistList
-            // 
+            //
             this.artistList.FormattingEnabled = true;
             this.artistList.ItemHeight = 15;
             this.artistList.Location = new System.Drawing.Point(680, 35);
             this.artistList.Name = "artistList";
             this.artistList.Size = new System.Drawing.Size(220, 229);
             this.artistList.TabIndex = 30;
-            // 
+            //
             // ButtonCancle
-            // 
+            //
             this.ButtonCancle.Enabled = false;
             this.ButtonCancle.Location = new System.Drawing.Point(544, 73);
             this.ButtonCancle.Name = "ButtonCancle";
