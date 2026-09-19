@@ -29,6 +29,7 @@ namespace FurryDownloader
         public int picNum;
 
         public string Url;
+        public string Cookie;
         public string FilePath;
         public string FileName;
         public TaskStatus Status;
@@ -114,15 +115,17 @@ namespace FurryDownloader
                 return;
 
             // header
+            DownloadRequestData requestData = new DownloadRequestData(task.Url, task.Cookie);
             HttpItem item = new HttpItem()
             {
-                URL = url,//URL     必需项
+                URL = requestData.Url,//URL     必需项
                 Method = "get",//URL     可选项 默认为Get
                 Timeout = 10000,//连接超时时间     可选项默认为100000
                 IsToLower = false,//得到的HTML代码是否转成小写     可选项默认转小写
                 UserAgent = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)",//用户的浏览器类型，版本，操作系统     可选项有默认值
                 Accept = "text/html, application/xhtml+xml, */*",//    可选项有默认值
                 ContentType = "*/*",//返回类型    可选项有默认值
+                Cookie = requestData.Cookie,
                 Referer = "https://www.furaffinity.net",//来源URL     可选项
                 ResultType = ResultType.Byte,//返回数据类型，是Byte还是String
                 // ProxyIp = "127.0.0.1:1081",

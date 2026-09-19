@@ -92,6 +92,8 @@
     <Compile Include="src\ArtistUpdatePlan.cs" />
     <Compile Include="src\Analyze.cs" />
     <Compile Include="src\DescriptionWriter.cs" />
+    <Compile Include="src\DownloadIndex.cs" />
+    <Compile Include="src\DownloadRequestData.cs" />
     <Compile Include="src\SubmissionInfo.cs" />
     <Compile Include="FaLogin.cs">
       <SubType>Form</SubType>
