@@ -16,7 +16,7 @@ namespace FurryDownloader
     {
         public static string Normalize(string input)
         {
-            string value = (input ?? String.Empty).Trim();
+            string value = (input ?? String.Empty).Trim().Replace("_", String.Empty);
             if (value.Length == 0)
                 throw new ArgumentException("Artist name is required", "input");
 

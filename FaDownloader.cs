@@ -14,6 +14,14 @@ namespace FurryDownloader
         private string userName;            // 作者名
         private string filePath;            // 下载存放目录
         private string cookie = "";         // cookie
+        private string downloadRootDirectory;
+
+        private ArtistListStore artistStore;
+        private List<ArtistEntry> artists = new List<ArtistEntry>();
+        private DownloadIndex downloadIndex;
+        private readonly object downloadIndexLock = new object();
+        private readonly HashSet<string> queuedDownloadUrls =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         //高级参数
         private int startPageNum = 1;       // 下载起始页的页号，默认1
@@ -37,6 +45,11 @@ namespace FurryDownloader
             InitializeComponent();
             LoadCookie();
             LoadSetting();
+
+            artistStore = new ArtistListStore(Path.Combine(homeDir, "artists.xml"));
+            artists = new List<ArtistEntry>(artistStore.Load());
+            downloadIndex = DownloadIndex.Load(Path.Combine(homeDir, "download-index.xml"));
+            RefreshArtistList();
         }
 
         /// <summary>
@@ -165,8 +178,12 @@ namespace FurryDownloader
                 {
                     //冻结所有控件
                     ButtonEnter.Enabled = false;
+                    ButtonUpdateList.Enabled = false;
                     ButtonCancle.Enabled = true;
                     input_name.Enabled = false;
+                    artistList.Enabled = false;
+                    ButtonAddArtist.Enabled = false;
+                    ButtonRemoveArtist.Enabled = false;
                     RadioButtonGallery.Enabled = RadioButtonScraps.Enabled = false;
                     Browse.Enabled = false;
                     InputPageNum.Enabled = InputStartPicNum.Enabled = InputMaxDownloadNum.Enabled = false;
@@ -195,8 +212,12 @@ namespace FurryDownloader
                 {
                     //解冻所有控件
                     ButtonEnter.Enabled = true;
+                    ButtonUpdateList.Enabled = true;
                     ButtonCancle.Enabled = false;
                     input_name.Enabled = true;
+                    artistList.Enabled = true;
+                    ButtonAddArtist.Enabled = true;
+                    ButtonRemoveArtist.Enabled = true;
                     RadioButtonGallery.Enabled = RadioButtonScraps.Enabled = true;
                     Browse.Enabled = true;
                     InputPageNum.Enabled = InputStartPicNum.Enabled = InputMaxDownloadNum.Enabled = true;
@@ -217,10 +238,54 @@ namespace FurryDownloader
         /// <param name="e"></param>
         private void ButtonStart_Click(object sender, EventArgs e)
         {
-            isStop = false;
+            ButtonUpdateList_Click(sender, e);
+        }
 
-            //开始下载
-            workerThread = new Thread(DoDownload);
+        private void ButtonAddArtist_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                ArtistEntry entry = new ArtistEntry(input_name.Text);
+                foreach (ArtistEntry artist in artists)
+                {
+                    if (String.Equals(artist.Name, entry.Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        AddItemToTextBox("画师已在列表中：" + entry.Name);
+                        return;
+                    }
+                }
+
+                artists.Add(entry);
+                artistStore.Save(artists);
+                RefreshArtistList();
+                input_name.Clear();
+                AddItemToTextBox("已添加画师：" + entry.Name);
+            }
+            catch (ArgumentException error)
+            {
+                AddItemToTextBox("无法添加画师：" + error.Message);
+            }
+        }
+
+        private void ButtonRemoveArtist_Click(object sender, EventArgs e)
+        {
+            if (artistList.SelectedIndex < 0 || artistList.SelectedIndex >= artists.Count)
+            {
+                AddItemToTextBox("请先选择要删除的画师");
+                return;
+            }
+
+            string removedName = artists[artistList.SelectedIndex].Name;
+            artists.RemoveAt(artistList.SelectedIndex);
+            artistStore.Save(artists);
+            RefreshArtistList();
+            AddItemToTextBox("已删除画师：" + removedName);
+        }
+
+        private void ButtonUpdateList_Click(object sender, EventArgs e)
+        {
+            isStop = false;
+            workerThread = new Thread(UpdateArtistList);
             workerThread.Start();
         }
 
@@ -296,9 +361,14 @@ namespace FurryDownloader
             userName = input_name.Text.Trim().Replace("_", "");
 
             // 获取下载目录
-            filePath = FilePath.Text.Length == 0
-                ? String.Format(".\\{0}\\", userName)
-                : String.Format("{0}\\{1}\\", FilePath.Text, userName);
+            downloadRootDirectory = GetDownloadRootDirectory();
+            filePath = Path.Combine(downloadRootDirectory, userName);
+
+            ReadDownloadOptions();
+        }
+
+        private void ReadDownloadOptions()
+        {
 
             // 处理高级选项参数
             string inputPage = InputPageNum.Text.Trim();
@@ -319,6 +389,19 @@ namespace FurryDownloader
 
             // 输出高级参数下载信息
             AddItemToTextBox(string.Format("从第{0}页第{1}张开始下载\r\n", this.startPageNum, this.startPicNum));
+        }
+
+        private string GetDownloadRootDirectory()
+        {
+            string root = (FilePath.Text ?? String.Empty).Trim();
+            return root.Length == 0 ? Directory.GetCurrentDirectory() : root;
+        }
+
+        private void RefreshArtistList()
+        {
+            artistList.Items.Clear();
+            foreach (ArtistEntry artist in artists)
+                artistList.Items.Add(artist.Name);
         }
 
         /// <summary>
@@ -358,7 +441,7 @@ namespace FurryDownloader
             AddItemToTextBox(String.Format("下载了{0}张，跳过了{1}张\r\n", totalDownloadNum, skipDownloadNum));
 
             // 修改回车焦点
-            this.AcceptButton = this.ButtonEnter;
+            this.AcceptButton = this.ButtonUpdateList;
         }
         #endregion
         #region 下载相关
@@ -406,7 +489,6 @@ namespace FurryDownloader
         private void download(string type)
         {
             AddItemToTextBox(type + "下载开始");
-            GetUserInput();
 
             // 循环下载第pageNum页
             while (true)
@@ -415,7 +497,7 @@ namespace FurryDownloader
                 {
                     if (isStop)
                     {
-                        throw new Exception("正在结束下载");
+                        throw new InterruptException("正在结束下载");
                     }
 
                     // 存储当前页面地址
@@ -492,74 +574,58 @@ namespace FurryDownloader
         /// <param name="type"></param>
         private void downloadPicture(string pageUrl, string type)
         {
-            // 获取缓存路径
-            string[] arr = pageUrl.Split('/');
-            string pageId = arr[arr.Length - 2];
+            // 每个详情页只请求一次，同时解析图片和描述。
+            string html = GetHtml(pageUrl);
+            if (String.IsNullOrEmpty(html))
+                throw new Exception("请检查网络");
 
-            string cacheDir = homeDir + "cache\\";
-            CreateDir(cacheDir);
-            string cacheFile = cacheDir + pageId;
-            string pictureUrl = null;
-
-            // 关闭缓存的话就顺便清理掉对应的缓存
-            if (checkBoxNoCache.Checked)
+            SubmissionInfo submission = Analyze.GetSubmissionInfo(pageUrl, html);
+            string pictureUrl = submission.PictureUrl;
+            string pictureName = submission.PictureName;
+            string defaultRelativePath = Path.Combine(
+                userName,
+                type == "gallery" ? pictureName : Path.Combine(type, pictureName));
+            string indexedRelativePath;
+            bool indexed;
+            lock (downloadIndexLock)
             {
-                File.Delete(cacheFile);
+                indexed = downloadIndex.TryGetPath(pictureUrl, out indexedRelativePath);
             }
-            // 从缓存中获取地址
-            else if (File.Exists(cacheFile))
+
+            string relativePath = indexed
+                ? GetSafeRelativePath(indexedRelativePath, defaultRelativePath)
+                : defaultRelativePath;
+            string fullFilePath = Path.Combine(downloadRootDirectory, relativePath);
+            string descriptionPath = GetDescriptionPath(submission, indexed);
+            DescriptionWriter.Write(descriptionPath, submission.Description);
+
+            bool alreadyQueued = queuedDownloadUrls.Contains(pictureUrl);
+            if (alreadyQueued || File.Exists(fullFilePath))
             {
-                pictureUrl = File.ReadAllText(cacheFile);
-                if (pictureUrl == "")
+                if (!indexed)
                 {
-                    pictureUrl = null;
+                    lock (downloadIndexLock)
+                        downloadIndex.Record(pictureUrl, relativePath);
                 }
-            }
 
-            if (pictureUrl == null)
-            {
-                //获取详情页面信息
-                string html = GetHtml(pageUrl);
-
-                // 检查页面是否下载成功
-                if (html == null || html == "")
-                    throw new Exception("请检查网络");
-
-                //获取图片下载地址
-                pictureUrl = Analyze.GetPictureUrl(html);
-                if (pictureUrl == null)
-                    throw new Exception("无法分析出图片地址：" + pageUrl);
-
-                // 缓存下来图片地址
-                CreateFile(cacheFile);
-                File.WriteAllText(cacheFile, pictureUrl);
-            }
-
-            // 获取文件名字
-            string pictureName = Analyze.GetFileName(pictureUrl);
-
-            // 文件完整路径
-            string fullFilePath = filePath + type + "\\" + pictureName;
-
-            // 判断文件是否已经存在
-            if (File.Exists(fullFilePath))
-            {
-                AddItemToTextBox(String.Format("第{0}页第{1}张已存在，跳过", startPageNum, startPicNum));
+                AddItemToTextBox(String.Format("第{0}页第{1}张已存在，跳过并更新描述", startPageNum, startPicNum));
                 startPicNum++;
-                skipDownloadNum++;
+                Interlocked.Increment(ref skipDownloadNum);
                 return;
             }
 
             // 使用多线程下载
+            queuedDownloadUrls.Add(pictureUrl);
+            string targetDirectory = Path.GetDirectoryName(fullFilePath);
             Task task = new Task()
             {
                 pageNum = startPageNum,
                 picNum = startPicNum,
 
                 Url = pictureUrl,
+                Cookie = cookie,
 
-                // gallery路径扁平化
-                FilePath = filePath + (type == "gallery" ? "" : type + "\\"),
+                FilePath = targetDirectory + Path.DirectorySeparatorChar,
                 FileName = pictureName,
                 TaskStart = new Task.TaskStartDelegate(delegate (int id, Task t)
                 {
@@ -571,7 +637,9 @@ namespace FurryDownloader
                 }),
                 TaskFinish = new Task.TaskFinishDelegate(delegate (int id, Task t)
                 {
-                    totalDownloadNum++;
+                    lock (downloadIndexLock)
+                        downloadIndex.Record(pictureUrl, relativePath);
+                    Interlocked.Increment(ref totalDownloadNum);
 
                     // 计算下载所用时间
                     DateTime now = DateTime.Now;
@@ -586,6 +654,124 @@ namespace FurryDownloader
             };
             DownloadManager.Add(task);
             startPicNum++;
+        }
+
+        private string GetDescriptionPath(SubmissionInfo submission, bool indexed)
+        {
+            string descriptionDirectory = Path.Combine(filePath, "descriptions");
+            if (indexed)
+            {
+                string baseName = Path.GetFileNameWithoutExtension(submission.PictureName);
+                return Path.Combine(descriptionDirectory, baseName + ".txt");
+            }
+
+            return DescriptionWriter.GetPath(filePath, submission.PictureName, submission.SubmissionId);
+        }
+
+        private string GetSafeRelativePath(string indexedPath, string fallbackPath)
+        {
+            if (String.IsNullOrWhiteSpace(indexedPath))
+                return fallbackPath;
+
+            try
+            {
+                string root = Path.GetFullPath(downloadRootDirectory)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    + Path.DirectorySeparatorChar;
+                string candidate = Path.GetFullPath(Path.Combine(downloadRootDirectory, indexedPath));
+                if (candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                    return indexedPath;
+            }
+            catch (ArgumentException)
+            {
+            }
+            catch (IOException)
+            {
+            }
+
+            return fallbackPath;
+        }
+
+        private void UpdateArtistList()
+        {
+            IList<string> plan = ArtistUpdatePlan.Build(artists);
+            if (plan.Count == 0)
+            {
+                AddItemToTextBox("画师列表为空，请先添加画师");
+                return;
+            }
+
+            GetUserInputOptionsForBatch();
+            BeforeDownload();
+            queuedDownloadUrls.Clear();
+
+            try
+            {
+                BatchUpdateSummary summary = ArtistUpdateRunner.Run(
+                    plan,
+                    UpdateArtist,
+                    delegate { return isStop; },
+                    delegate (string artist, Exception error)
+                    {
+                        AddItemToTextBox(artist + " 更新失败：" + error.Message);
+                    });
+
+                lock (downloadIndexLock)
+                    downloadIndex.Save();
+
+                AddItemToTextBox(String.Format(
+                    "列表更新完成：成功 {0}，失败 {1}，停止 {2}",
+                    summary.Succeeded,
+                    summary.Failed,
+                    summary.Stopped));
+            }
+            catch (Exception error)
+            {
+                AddItemToTextBox("列表更新异常：" + error.Message);
+                DownloadManager.StopAll();
+                DownloadManager.WaitForAllFinished();
+            }
+            finally
+            {
+                AfterDownload();
+            }
+        }
+
+        private void GetUserInputOptionsForBatch()
+        {
+            downloadRootDirectory = GetDownloadRootDirectory();
+            ReadDownloadOptions();
+        }
+
+        private void UpdateArtist(string artist)
+        {
+            userName = artist;
+            filePath = Path.Combine(downloadRootDirectory, userName);
+            startPageNum = 1;
+            startPicNum = 1;
+            AddItemToTextBox("开始更新画师：" + userName);
+
+            try
+            {
+                download("gallery");
+                if (!isStop)
+                {
+                    startPageNum = 1;
+                    startPicNum = 1;
+                    download("scraps");
+                }
+            }
+            catch (InterruptException)
+            {
+                if (!isStop)
+                    throw;
+            }
+            finally
+            {
+                DownloadManager.WaitForAllFinished();
+                lock (downloadIndexLock)
+                    downloadIndex.Save();
+            }
         }
 
         /// <summary>

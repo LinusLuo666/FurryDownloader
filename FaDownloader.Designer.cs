@@ -33,9 +33,14 @@
             System.Windows.Forms.Label label2;
             System.Windows.Forms.Label label3;
             System.Windows.Forms.Label Expert;
+            System.Windows.Forms.Label artistListLabel;
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(mainFrom));
             this.input_name = new System.Windows.Forms.TextBox();
             this.ButtonEnter = new System.Windows.Forms.Button();
+            this.ButtonAddArtist = new System.Windows.Forms.Button();
+            this.ButtonRemoveArtist = new System.Windows.Forms.Button();
+            this.ButtonUpdateList = new System.Windows.Forms.Button();
+            this.artistList = new System.Windows.Forms.ListBox();
             this.ButtonCancle = new System.Windows.Forms.Button();
             this.panel = new System.Windows.Forms.Panel();
             this.label1 = new System.Windows.Forms.Label();
@@ -59,6 +64,7 @@
             label2 = new System.Windows.Forms.Label();
             label3 = new System.Windows.Forms.Label();
             Expert = new System.Windows.Forms.Label();
+            artistListLabel = new System.Windows.Forms.Label();
             this.panel.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -70,7 +76,17 @@
             info_name.Name = "info_name";
             info_name.Size = new System.Drawing.Size(235, 24);
             info_name.TabIndex = 0;
-            info_name.Text = "在此处输入作者名：";
+            info_name.Text = "添加画师到列表：";
+            // 
+            // artistListLabel
+            // 
+            artistListLabel.AutoSize = true;
+            artistListLabel.Font = new System.Drawing.Font("楷体", 13.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            artistListLabel.Location = new System.Drawing.Point(680, 8);
+            artistListLabel.Name = "artistListLabel";
+            artistListLabel.Size = new System.Drawing.Size(115, 24);
+            artistListLabel.TabIndex = 26;
+            artistListLabel.Text = "画师列表：";
             // 
             // label2
             // 
@@ -115,7 +131,47 @@
             this.ButtonEnter.TabIndex = 2;
             this.ButtonEnter.Text = "开始";
             this.ButtonEnter.UseVisualStyleBackColor = true;
+            this.ButtonEnter.Visible = false;
             this.ButtonEnter.Click += new System.EventHandler(this.ButtonStart_Click);
+            // 
+            // ButtonAddArtist
+            // 
+            this.ButtonAddArtist.Location = new System.Drawing.Point(680, 280);
+            this.ButtonAddArtist.Name = "ButtonAddArtist";
+            this.ButtonAddArtist.Size = new System.Drawing.Size(105, 35);
+            this.ButtonAddArtist.TabIndex = 27;
+            this.ButtonAddArtist.Text = "添加";
+            this.ButtonAddArtist.UseVisualStyleBackColor = true;
+            this.ButtonAddArtist.Click += new System.EventHandler(this.ButtonAddArtist_Click);
+            // 
+            // ButtonRemoveArtist
+            // 
+            this.ButtonRemoveArtist.Location = new System.Drawing.Point(795, 280);
+            this.ButtonRemoveArtist.Name = "ButtonRemoveArtist";
+            this.ButtonRemoveArtist.Size = new System.Drawing.Size(105, 35);
+            this.ButtonRemoveArtist.TabIndex = 28;
+            this.ButtonRemoveArtist.Text = "删除";
+            this.ButtonRemoveArtist.UseVisualStyleBackColor = true;
+            this.ButtonRemoveArtist.Click += new System.EventHandler(this.ButtonRemoveArtist_Click);
+            // 
+            // ButtonUpdateList
+            // 
+            this.ButtonUpdateList.Location = new System.Drawing.Point(680, 325);
+            this.ButtonUpdateList.Name = "ButtonUpdateList";
+            this.ButtonUpdateList.Size = new System.Drawing.Size(220, 45);
+            this.ButtonUpdateList.TabIndex = 29;
+            this.ButtonUpdateList.Text = "更新列表";
+            this.ButtonUpdateList.UseVisualStyleBackColor = true;
+            this.ButtonUpdateList.Click += new System.EventHandler(this.ButtonUpdateList_Click);
+            // 
+            // artistList
+            // 
+            this.artistList.FormattingEnabled = true;
+            this.artistList.ItemHeight = 15;
+            this.artistList.Location = new System.Drawing.Point(680, 35);
+            this.artistList.Name = "artistList";
+            this.artistList.Size = new System.Drawing.Size(220, 229);
+            this.artistList.TabIndex = 30;
             // 
             // ButtonCancle
             // 
@@ -309,10 +365,15 @@
             // 
             // mainFrom
             // 
-            this.AcceptButton = this.ButtonEnter;
+            this.AcceptButton = this.ButtonUpdateList;
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(664, 553);
+            this.ClientSize = new System.Drawing.Size(920, 553);
+            this.Controls.Add(this.ButtonUpdateList);
+            this.Controls.Add(this.ButtonRemoveArtist);
+            this.Controls.Add(this.ButtonAddArtist);
+            this.Controls.Add(this.artistList);
+            this.Controls.Add(artistListLabel);
             this.Controls.Add(this.ButtonLogin);
             this.Controls.Add(this.Help);
             this.Controls.Add(this.textBox);
@@ -337,6 +398,10 @@
 
         private System.Windows.Forms.TextBox input_name;
         private System.Windows.Forms.Button ButtonEnter;
+        private System.Windows.Forms.Button ButtonAddArtist;
+        private System.Windows.Forms.Button ButtonRemoveArtist;
+        private System.Windows.Forms.Button ButtonUpdateList;
+        private System.Windows.Forms.ListBox artistList;
         private System.Windows.Forms.Button ButtonCancle;
         private System.Windows.Forms.Panel panel;
         private System.Windows.Forms.TextBox textBox;

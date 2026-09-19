@@ -96,6 +96,7 @@
     <Compile Include="src\ArtistEntry.cs" />
     <Compile Include="src\ArtistListStore.cs" />
     <Compile Include="src\ArtistUpdatePlan.cs" />
+    <Compile Include="src\ArtistUpdateRunner.cs" />
     <Compile Include="src\Analyze.cs" />
     <Compile Include="src\DescriptionWriter.cs" />
     <Compile Include="src\DownloadIndex.cs" />
