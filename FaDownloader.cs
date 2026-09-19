@@ -20,6 +20,7 @@ namespace FurryDownloader
         private List<ArtistEntry> artists = new List<ArtistEntry>();
         private DownloadIndex downloadIndex;
         private readonly object downloadIndexLock = new object();
+        private readonly object queuedDownloadLock = new object();
         private readonly HashSet<string> queuedDownloadUrls =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -35,7 +36,8 @@ namespace FurryDownloader
         private Thread workerThread;        // 主循环线程
         private DateTime startTime;         // 开始下载前的时间
 
-        private bool isStop = false;        // 是否停止下载
+        private volatile bool isStop = false;        // 是否停止下载
+        private bool retryOnNetworkErrors = true;
 
         private HttpHelper http = new HttpHelper();
         private string homeDir = Environment.GetFolderPath(Environment.SpecialFolder.Personal) + "\\FaDownloader\\";
@@ -284,6 +286,11 @@ namespace FurryDownloader
 
         private void ButtonUpdateList_Click(object sender, EventArgs e)
         {
+            if (workerThread != null && workerThread.IsAlive)
+                return;
+
+            // 在 UI 线程读取选项，后台线程只使用快照，避免跨线程访问 WinForms 控件。
+            GetUserInputOptionsForBatch();
             isStop = false;
             workerThread = new Thread(UpdateArtistList);
             workerThread.Start();
@@ -413,7 +420,7 @@ namespace FurryDownloader
             Freeze();
 
             // 修改回车焦点
-            this.AcceptButton = this.ButtonCancle;
+            SetAcceptButton(this.ButtonCancle);
 
             // 下载总数和跳过总数清零
             totalDownloadNum = 0;
@@ -441,7 +448,25 @@ namespace FurryDownloader
             AddItemToTextBox(String.Format("下载了{0}张，跳过了{1}张\r\n", totalDownloadNum, skipDownloadNum));
 
             // 修改回车焦点
-            this.AcceptButton = this.ButtonUpdateList;
+            SetAcceptButton(this.ButtonUpdateList);
+        }
+
+        private void SetAcceptButton(Button button)
+        {
+            try
+            {
+                if (InvokeRequired)
+                {
+                    Invoke(new Action<Button>(SetAcceptButton), button);
+                }
+                else
+                {
+                    AcceptButton = button;
+                }
+            }
+            catch
+            {
+            }
         }
         #endregion
         #region 下载相关
@@ -554,7 +579,7 @@ namespace FurryDownloader
                 }
                 catch (NetworkException)
                 {
-                    if (checkBoxRetry.Checked)
+                    if (retryOnNetworkErrors)
                     {
                         AddItemToTextBox("网络不稳定，将在一秒后重试");
                         Thread.Sleep(1000);
@@ -596,10 +621,12 @@ namespace FurryDownloader
                 ? GetSafeRelativePath(indexedRelativePath, defaultRelativePath)
                 : defaultRelativePath;
             string fullFilePath = Path.Combine(downloadRootDirectory, relativePath);
-            string descriptionPath = GetDescriptionPath(submission, indexed);
+            bool alreadyQueued;
+            lock (queuedDownloadLock)
+                alreadyQueued = queuedDownloadUrls.Contains(pictureUrl);
+            string descriptionPath = GetDescriptionPath(submission, indexed || alreadyQueued);
             DescriptionWriter.Write(descriptionPath, submission.Description);
 
-            bool alreadyQueued = queuedDownloadUrls.Contains(pictureUrl);
             if (alreadyQueued || File.Exists(fullFilePath))
             {
                 if (!indexed)
@@ -615,7 +642,8 @@ namespace FurryDownloader
             }
 
             // 使用多线程下载
-            queuedDownloadUrls.Add(pictureUrl);
+            lock (queuedDownloadLock)
+                queuedDownloadUrls.Add(pictureUrl);
             string targetDirectory = Path.GetDirectoryName(fullFilePath);
             Task task = new Task()
             {
@@ -649,6 +677,8 @@ namespace FurryDownloader
                 }),
                 TaskFail = new Task.TaskFailDelegate(delegate (int id, Task t)
                 {
+                    lock (queuedDownloadLock)
+                        queuedDownloadUrls.Remove(pictureUrl);
                     AddItemToTextBox(String.Format("第{0}页第{1}张下载失败，文件名：{2}，url：{3}", t.pageNum, t.picNum, t.FileName, t.Url));
                 }),
             };
@@ -701,9 +731,9 @@ namespace FurryDownloader
                 return;
             }
 
-            GetUserInputOptionsForBatch();
             BeforeDownload();
-            queuedDownloadUrls.Clear();
+            lock (queuedDownloadLock)
+                queuedDownloadUrls.Clear();
 
             try
             {
@@ -741,6 +771,7 @@ namespace FurryDownloader
         {
             downloadRootDirectory = GetDownloadRootDirectory();
             ReadDownloadOptions();
+            retryOnNetworkErrors = checkBoxRetry.Checked;
         }
 
         private void UpdateArtist(string artist)

@@ -42,6 +42,12 @@ namespace FurryDownloader.Tests
             Assert.Empty(ArtistUpdatePlan.Build(Array.Empty<ArtistEntry>()));
         }
 
+        [Fact]
+        public void ArtistEntryTrimsAndRemovesUnderscores()
+        {
+            Assert.Equal("ArtistName", new ArtistEntry(" _Artist_Name_ ").Name);
+        }
+
         [Theory]
         [InlineData(null)]
         [InlineData("")]
