@@ -1,31 +1,90 @@
-﻿
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Web.WebView2.Core;
 
 namespace FurryDownloader
 {
     public partial class FaLogin : Form
     {
-        // 登录后的身份cookie
+        private const string LoginUrl = "https://www.furaffinity.net/login/?mode=imagecaptcha";
+
+        // 登录后的身份 cookie
         public string Cookie = "";
 
         public FaLogin()
         {
             InitializeComponent();
-            WebBrowser.Navigated += WebBrowser_Navigated;
+            Shown += FaLogin_Shown;
+            WebView.NavigationCompleted += WebView_NavigationCompleted;
         }
 
-        private void WebBrowser_Navigated(object sender, WebBrowserNavigatedEventArgs e)
+        private async void FaLogin_Shown(object sender, EventArgs e)
         {
-            // 获取被httponly保护的cookie
-            string cookie = FullWebBrowserCookie.GetCookieInternal(WebBrowser.Url, false);
+            await InitializeBrowserAsync();
+        }
 
-            System.Console.WriteLine(cookie);
+        private async System.Threading.Tasks.Task InitializeBrowserAsync()
+        {
+            string dataDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Personal),
+                "FaDownloader",
+                "WebView2");
 
-            if (cookie.Contains("; a="))
+            try
             {
-                Cookie = cookie;
-                WebBrowser.Dispose();
-                this.Close();
+                Directory.CreateDirectory(dataDirectory);
+                CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(
+                    null,
+                    dataDirectory,
+                    null);
+                await WebView.EnsureCoreWebView2Async(environment);
+                WebView.CoreWebView2.Navigate(LoginUrl);
+            }
+            catch (WebView2RuntimeNotFoundException)
+            {
+                MessageBox.Show(
+                    "未找到 Microsoft Edge WebView2 Runtime，请安装后重新登录。",
+                    "登录失败",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            catch (Exception error)
+            {
+                MessageBox.Show(
+                    "无法初始化登录页面：" + error.Message,
+                    "登录失败",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private async void WebView_NavigationCompleted(
+            object sender,
+            CoreWebView2NavigationCompletedEventArgs e)
+        {
+            if (!e.IsSuccess || WebView.CoreWebView2 == null || !String.IsNullOrEmpty(Cookie))
+                return;
+
+            try
+            {
+                var cookies = await WebView.CoreWebView2.CookieManager
+                    .GetCookiesAsync("https://www.furaffinity.net/");
+                var faCookies = cookies
+                    .Select(cookie => new FaCookie(cookie.Name, cookie.Value))
+                    .ToList();
+
+                if (CookieFormatter.HasIdentityCookie(faCookies))
+                {
+                    Cookie = CookieFormatter.ToRequestHeader(faCookies);
+                    Close();
+                }
+            }
+            catch (Exception error)
+            {
+                Console.WriteLine("读取 FA 登录 Cookie 失败：" + error.Message);
             }
         }
     }

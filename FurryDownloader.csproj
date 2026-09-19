@@ -85,6 +85,12 @@
     <Reference Include="System.Resources.Extensions">
       <HintPath>$(NuGetPackageRoot)system.resources.extensions\8.0.0\lib\net462\System.Resources.Extensions.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>$(NuGetPackageRoot)microsoft.web.webview2\1.0.3485.44\lib\net462\Microsoft.Web.WebView2.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.WinForms">
+      <HintPath>$(NuGetPackageRoot)microsoft.web.webview2\1.0.3485.44\lib\net462\Microsoft.Web.WebView2.WinForms.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\ArtistEntry.cs" />
@@ -94,6 +100,8 @@
     <Compile Include="src\DescriptionWriter.cs" />
     <Compile Include="src\DownloadIndex.cs" />
     <Compile Include="src\DownloadRequestData.cs" />
+    <Compile Include="src\FaCookie.cs" />
+    <Compile Include="src\CookieFormatter.cs" />
     <Compile Include="src\SubmissionInfo.cs" />
     <Compile Include="FaLogin.cs">
       <SubType>Form</SubType>
@@ -112,7 +120,6 @@
     <Compile Include="src\Exceptions\NeedLoginException.cs" />
     <Compile Include="src\Exceptions\NetworkException.cs" />
     <Compile Include="src\Exceptions\NoSuchArtistException.cs" />
-    <Compile Include="src\FullWebBrowserCookie.cs" />
     <Compile Include="src\HttpHelper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
