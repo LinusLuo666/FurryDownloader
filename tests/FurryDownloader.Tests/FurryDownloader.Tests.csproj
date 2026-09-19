@@ -8,6 +8,9 @@
     <Compile Include="..\..\src\ArtistEntry.cs" Link="src\ArtistEntry.cs" />
     <Compile Include="..\..\src\ArtistListStore.cs" Link="src\ArtistListStore.cs" />
     <Compile Include="..\..\src\ArtistUpdatePlan.cs" Link="src\ArtistUpdatePlan.cs" />
+    <Compile Include="..\..\src\Analyze.cs" Link="src\Analyze.cs" />
+    <Compile Include="..\..\src\SubmissionInfo.cs" Link="src\SubmissionInfo.cs" />
+    <Compile Include="..\..\src\DescriptionWriter.cs" Link="src\DescriptionWriter.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
