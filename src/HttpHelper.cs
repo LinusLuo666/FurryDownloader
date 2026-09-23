@@ -442,7 +442,10 @@ namespace FurryDownloader
             }
             else
             {
-                request.Proxy = item.WebProxy;
+                // 未指定自定义代理时保留 HttpWebRequest 的系统代理设置。
+                // 直接赋值 null 会绕过系统代理，导致部分网络环境下请求超时。
+                if (item.WebProxy != null)
+                    request.Proxy = item.WebProxy;
             }
         }
 

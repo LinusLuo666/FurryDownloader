@@ -818,13 +818,15 @@ namespace FurryDownloader
                 Encoding = Encoding.UTF8,//编码格式（utf-8,gb2312,gbk）     可选项 默认类会自动识别
                                          //Encoding = Encoding.Default,
                 Method = "get",//URL     可选项 默认为Get
-                Timeout = 10000,//连接超时时间     可选项默认为100000
+                Timeout = 30000,//连接超时时间     可选项默认为100000
                 IsToLower = false,//得到的HTML代码是否转成小写     可选项默认转小写
                 Cookie = cookie,//字符串Cookie     可选项
                 UserAgent = "PostmanRuntime/7.17.1",//用户的浏览器类型，版本，操作系统     可选项有默认值
                 Accept = "*/*",//    可选项有默认值
                 Referer = "https://www.furaffinity.net",//来源URL     可选项
                 Host = "www.furaffinity.net",
+                Allowautoredirect = true,
+                MaximumAutomaticRedirections = 5,
                 ResultType = ResultType.String,//返回数据类型，是Byte还是String
                 Connectionlimit = 16,
                 // ProxyIp = "127.0.0.1:1081",
@@ -833,9 +835,9 @@ namespace FurryDownloader
             try
             {
                 var response = http.GetHtml(item);
-                if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                if (response.StatusCode != System.Net.HttpStatusCode.OK)
                 {
-                    throw new NetworkException("访问量过大，将稍后重试");
+                    throw new NetworkException("FA 请求失败，状态码：" + response.StatusCode);
                 }
 
                 // 返回html
