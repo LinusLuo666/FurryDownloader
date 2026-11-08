@@ -61,6 +61,33 @@ namespace FurryDownloader
             this.task = task;
         }
 
+        public void RunSynchronously(Func<bool> stopRequested, bool retryEnabled)
+        {
+            task.TaskStart(taskId, task);
+            for (int attempt = 0; ; attempt++)
+            {
+                if (stopRequested())
+                {
+                    task.TaskStop(taskId, task);
+                    return;
+                }
+                try
+                {
+                    DownloadAndSave(task.Url, task.FilePath, task.FileName);
+                    task.TaskFinish(taskId, task);
+                    return;
+                }
+                catch
+                {
+                    if (!retryEnabled || attempt >= 3)
+                    {
+                        task.TaskFail(taskId, task);
+                        throw;
+                    }
+                }
+            }
+        }
+
         public void Start(Object o)
         {
             try
@@ -140,11 +167,23 @@ namespace FurryDownloader
             //判断状态码
             if (result.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception("状态码错误：" + result.StatusCode);
+                throw new Exception("状态码错误：" + result.StatusCode +
+                    ((int)result.StatusCode == 0 ? " " + result.Html : ""));
             }
 
-            // 写入磁盘
-            File.WriteAllBytes(fileDir + fileName, result.ResultByte);
+            // Only expose a completed file to the deduplication check.
+            string finalPath = Path.Combine(fileDir, fileName);
+            string temporaryPath = finalPath + "." + Guid.NewGuid().ToString("N") + ".part";
+            try
+            {
+                File.WriteAllBytes(temporaryPath, result.ResultByte);
+                try { File.Move(temporaryPath, finalPath); }
+                catch (IOException) { if (!File.Exists(finalPath)) throw; }
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+            }
         }
     }
 

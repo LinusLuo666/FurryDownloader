@@ -7,6 +7,32 @@ namespace FurryDownloader.Tests
     public class BatchUpdateRunnerTests
     {
         [Fact]
+        public void StopDuringAnExceptionIsReportedAsStopped()
+        {
+            bool stopped = false;
+            BatchUpdateSummary result = ArtistUpdateRunner.Run(
+                new[] { "first" },
+                artist => { stopped = true; throw new InvalidOperationException(); },
+                () => stopped,
+                (artist, error) => { });
+            Assert.Equal(0, result.Failed);
+            Assert.Equal(1, result.Stopped);
+        }
+
+        [Fact]
+        public void InterruptedArtistIsNotReportedAsSuccessful()
+        {
+            bool stopped = false;
+            BatchUpdateSummary result = ArtistUpdateRunner.Run(
+                new[] { "first", "second" },
+                artist => stopped = true,
+                () => stopped,
+                (artist, error) => { });
+            Assert.Equal(0, result.Succeeded);
+            Assert.Equal(1, result.Stopped);
+        }
+
+        [Fact]
         public void RunnerContinuesAfterOneArtistFails()
         {
             List<string> processed = new List<string>();

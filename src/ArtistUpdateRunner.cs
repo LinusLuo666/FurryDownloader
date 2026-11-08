@@ -35,10 +35,20 @@ namespace FurryDownloader
                 try
                 {
                     updateArtist(artist);
+                    if (stopRequested())
+                    {
+                        summary.Stopped++;
+                        break;
+                    }
                     summary.Succeeded++;
                 }
                 catch (Exception error)
                 {
+                    if (stopRequested())
+                    {
+                        summary.Stopped++;
+                        break;
+                    }
                     summary.Failed++;
                     reportFailure(artist, error);
                 }

@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace FurryDownloader
 {
@@ -39,7 +40,8 @@ namespace FurryDownloader
         private volatile bool isStop = false;        // 是否停止下载
         private bool retryOnNetworkErrors = true;
 
-        private HttpHelper http = new HttpHelper();
+        private int concurrency = 4;
+        private NumericUpDown concurrencyInput;
         private string homeDir = Environment.GetFolderPath(Environment.SpecialFolder.Personal) + "\\FaDownloader\\";
 
         public mainFrom()
@@ -47,11 +49,25 @@ namespace FurryDownloader
             InitializeComponent();
             LoadCookie();
             LoadSetting();
+            InitializeConcurrency();
 
             artistStore = new ArtistListStore(Path.Combine(homeDir, "artists.xml"));
             artists = new List<ArtistEntry>(artistStore.Load());
             downloadIndex = DownloadIndex.Load(Path.Combine(homeDir, "download-index.xml"));
             RefreshArtistList();
+        }
+
+        private void InitializeConcurrency()
+        {
+            var label = new Label { Text = "并发数：", AutoSize = true, Location = new System.Drawing.Point(350, 108) };
+            concurrencyInput = new NumericUpDown { Minimum = 1, Maximum = 16, Value = 4, Location = new System.Drawing.Point(420, 103), Width = 55 };
+            int saved;
+            string path = Path.Combine(homeDir, "concurrency.txt");
+            if (File.Exists(path) && Int32.TryParse(File.ReadAllText(path), out saved) && saved >= 1 && saved <= 16)
+                concurrencyInput.Value = saved;
+            concurrencyInput.ValueChanged += delegate { File.WriteAllText(path, concurrencyInput.Value.ToString()); };
+            panel.Controls.Add(label);
+            panel.Controls.Add(concurrencyInput);
         }
 
         /// <summary>
@@ -189,6 +205,7 @@ namespace FurryDownloader
                     RadioButtonGallery.Enabled = RadioButtonScraps.Enabled = false;
                     Browse.Enabled = false;
                     InputPageNum.Enabled = InputStartPicNum.Enabled = InputMaxDownloadNum.Enabled = false;
+                    concurrencyInput.Enabled = false;
                 }
             }
             catch
@@ -223,6 +240,7 @@ namespace FurryDownloader
                     RadioButtonGallery.Enabled = RadioButtonScraps.Enabled = true;
                     Browse.Enabled = true;
                     InputPageNum.Enabled = InputStartPicNum.Enabled = InputMaxDownloadNum.Enabled = true;
+                    concurrencyInput.Enabled = true;
                 }
             }
             catch
@@ -381,6 +399,7 @@ namespace FurryDownloader
             string inputPage = InputPageNum.Text.Trim();
             string inputStartPic = InputStartPicNum.Text.Trim();
             string inputMaxDownloadNum = InputMaxDownloadNum.Text.Trim();
+            concurrency = (int)concurrencyInput.Value;
 
             // 起始页数，默认值为1
             if (!int.TryParse(inputPage, out startPageNum) || startPageNum < 1)
@@ -431,7 +450,7 @@ namespace FurryDownloader
             startTime = DateTime.Now;
 
             // 设置最大线程数
-            DownloadManager.SetMaxThreads(16);
+            System.Net.ServicePointManager.DefaultConnectionLimit = Math.Max(16, concurrency);
         }
 
         /// <summary>
@@ -556,24 +575,26 @@ namespace FurryDownloader
                     if (pages.Count == 0)
                         return;
 
-                    for (int i = startPicNum - 1; i < pages.Count; ++i)
+                    int first = Math.Min(startPicNum - 1, pages.Count);
+                    int count = pages.Count - first;
+                    if (maxDownloadNum != 0)
+                        count = Math.Min(count, Math.Max(0, maxDownloadNum - currentDownloadTaskNum));
+                    if (count == 0)
                     {
-                        // 停止时不再添加新的任务
-                        if (isStop)
-                        {
-                            throw new InterruptException("正在结束下载");
-                        }
-
-                        // 在到达最大下载量时停止
-                        if (maxDownloadNum != 0 && currentDownloadTaskNum >= maxDownloadNum)
-                        {
-                            AddItemToTextBox("已到达最大任务量，正在等待下载完成");
-                            return;
-                        }
-
-                        currentDownloadTaskNum++;
-                        downloadPicture(pages[i], type);
+                        if (maxDownloadNum != 0 && currentDownloadTaskNum >= maxDownloadNum) return;
+                        startPicNum = 1;
+                        startPageNum++;
+                        continue;
                     }
+                    int pageNumber = startPageNum;
+                    currentDownloadTaskNum += count;
+                    Parallel.For(first, first + count, new ParallelOptions { MaxDegreeOfParallelism = concurrency }, (i, state) =>
+                    {
+                        if (isStop) { state.Stop(); return; }
+                        downloadPicture(pages[i], type, pageNumber, i + 1);
+                    });
+                    if (isStop) throw new InterruptException("正在结束下载");
+                    if (maxDownloadNum != 0 && currentDownloadTaskNum >= maxDownloadNum) return;
                     startPicNum = 1;
                     startPageNum++;
                 }
@@ -597,10 +618,20 @@ namespace FurryDownloader
         /// </summary>
         /// <param name="pageUrl"></param>
         /// <param name="type"></param>
-        private void downloadPicture(string pageUrl, string type)
+        private void downloadPicture(string pageUrl, string type, int pageNumber, int pictureNumber)
         {
             // 每个详情页只请求一次，同时解析图片和描述。
-            string html = GetHtml(pageUrl);
+            string html;
+            for (int attempt = 0; ; attempt++)
+            {
+                if (isStop) throw new InterruptException("正在结束下载");
+                try { html = GetHtml(pageUrl); break; }
+                catch (NetworkException)
+                {
+                    if (!retryOnNetworkErrors || attempt >= 2) throw;
+                    Thread.Sleep(1000);
+                }
+            }
             if (String.IsNullOrEmpty(html))
                 throw new Exception("请检查网络");
 
@@ -622,39 +653,42 @@ namespace FurryDownloader
                 : defaultRelativePath;
             string fullFilePath = Path.Combine(downloadRootDirectory, relativePath);
             bool alreadyQueued;
+            bool fileExists;
             lock (queuedDownloadLock)
-                alreadyQueued = queuedDownloadUrls.Contains(pictureUrl);
-            string descriptionPath = GetDescriptionPath(submission, indexed || alreadyQueued);
-            DescriptionWriter.Write(descriptionPath, submission.Description);
-
-            if (alreadyQueued || File.Exists(fullFilePath))
             {
-                if (!indexed)
+                alreadyQueued = queuedDownloadUrls.Contains(pictureUrl);
+                fileExists = File.Exists(fullFilePath);
+                string descriptionPath = GetDescriptionPath(submission, indexed || alreadyQueued);
+                DescriptionWriter.Write(descriptionPath, submission.Description);
+                if (!alreadyQueued && !fileExists)
+                    queuedDownloadUrls.Add(pictureUrl);
+            }
+
+            if (alreadyQueued || fileExists)
+            {
+                if (!indexed && fileExists)
                 {
                     lock (downloadIndexLock)
                         downloadIndex.Record(pictureUrl, relativePath);
                 }
 
-                AddItemToTextBox(String.Format("第{0}页第{1}张已存在，跳过并更新描述", startPageNum, startPicNum));
-                startPicNum++;
+                AddItemToTextBox(String.Format("第{0}页第{1}张已存在，跳过并更新描述", pageNumber, pictureNumber));
                 Interlocked.Increment(ref skipDownloadNum);
                 return;
             }
 
             // 使用多线程下载
-            lock (queuedDownloadLock)
-                queuedDownloadUrls.Add(pictureUrl);
             string targetDirectory = Path.GetDirectoryName(fullFilePath);
             Task task = new Task()
             {
-                pageNum = startPageNum,
-                picNum = startPicNum,
+                pageNum = pageNumber,
+                picNum = pictureNumber,
 
                 Url = pictureUrl,
                 Cookie = cookie,
 
                 FilePath = targetDirectory + Path.DirectorySeparatorChar,
-                FileName = pictureName,
+                FileName = Path.GetFileName(fullFilePath),
                 TaskStart = new Task.TaskStartDelegate(delegate (int id, Task t)
                 {
                     // 下载开始
@@ -682,8 +716,7 @@ namespace FurryDownloader
                     AddItemToTextBox(String.Format("第{0}页第{1}张下载失败，文件名：{2}，url：{3}", t.pageNum, t.picNum, t.FileName, t.Url));
                 }),
             };
-            DownloadManager.Add(task);
-            startPicNum++;
+            new TaskWorker(0, task).RunSynchronously(delegate { return isStop; }, retryOnNetworkErrors);
         }
 
         private string GetDescriptionPath(SubmissionInfo submission, bool indexed)
@@ -834,7 +867,7 @@ namespace FurryDownloader
 
             try
             {
-                var response = http.GetHtml(item);
+                var response = new HttpHelper().GetHtml(item);
                 if (response.StatusCode != System.Net.HttpStatusCode.OK)
                 {
                     throw new NetworkException("FA 请求失败，状态码：" + response.StatusCode);

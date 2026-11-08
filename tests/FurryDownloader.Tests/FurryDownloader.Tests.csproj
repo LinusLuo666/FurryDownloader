@@ -13,6 +13,8 @@
     <Compile Include="..\..\src\DescriptionWriter.cs" Link="src\DescriptionWriter.cs" />
     <Compile Include="..\..\src\DownloadIndex.cs" Link="src\DownloadIndex.cs" />
     <Compile Include="..\..\src\DownloadRequestData.cs" Link="src\DownloadRequestData.cs" />
+    <Compile Include="..\..\src\DownloadManager.cs" Link="src\DownloadManager.cs" />
+    <Compile Include="..\..\src\HttpHelper.cs" Link="src\HttpHelper.cs" />
     <Compile Include="..\..\src\FaCookie.cs" Link="src\FaCookie.cs" />
     <Compile Include="..\..\src\CookieFormatter.cs" Link="src\CookieFormatter.cs" />
     <Compile Include="..\..\src\ArtistUpdateRunner.cs" Link="src\ArtistUpdateRunner.cs" />
