@@ -59,15 +59,11 @@ namespace FurryDownloader
 
         private void InitializeConcurrency()
         {
-            var label = new Label { Text = "并发数：", AutoSize = true, Location = new System.Drawing.Point(350, 108) };
-            concurrencyInput = new NumericUpDown { Minimum = 1, Maximum = 16, Value = 4, Location = new System.Drawing.Point(420, 103), Width = 55 };
             int saved;
             string path = Path.Combine(homeDir, "concurrency.txt");
             if (File.Exists(path) && Int32.TryParse(File.ReadAllText(path), out saved) && saved >= 1 && saved <= 16)
                 concurrencyInput.Value = saved;
             concurrencyInput.ValueChanged += delegate { File.WriteAllText(path, concurrencyInput.Value.ToString()); };
-            panel.Controls.Add(label);
-            panel.Controls.Add(concurrencyInput);
         }
 
         /// <summary>

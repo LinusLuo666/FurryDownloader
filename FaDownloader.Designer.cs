@@ -43,6 +43,8 @@
             this.artistList = new System.Windows.Forms.ListBox();
             this.ButtonCancle = new System.Windows.Forms.Button();
             this.panel = new System.Windows.Forms.Panel();
+            this.concurrencyInput = new System.Windows.Forms.NumericUpDown();
+            var concurrencyLabel = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.InputMaxDownloadNum = new System.Windows.Forms.TextBox();
             this.checkBoxRetry = new System.Windows.Forms.CheckBox();
@@ -66,6 +68,7 @@
             Expert = new System.Windows.Forms.Label();
             artistListLabel = new System.Windows.Forms.Label();
             this.panel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.concurrencyInput)).BeginInit();
             this.SuspendLayout();
             // 
             // info_name
@@ -188,6 +191,17 @@
             // 
             this.panel.BackColor = System.Drawing.Color.Gainsboro;
             this.panel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            concurrencyLabel.AutoSize = true;
+            concurrencyLabel.Location = new System.Drawing.Point(133, 141);
+            concurrencyLabel.Text = "并发数：";
+            this.concurrencyInput.Location = new System.Drawing.Point(210, 137);
+            this.concurrencyInput.Name = "concurrencyInput";
+            this.concurrencyInput.Size = new System.Drawing.Size(55, 25);
+            this.concurrencyInput.Minimum = 1;
+            this.concurrencyInput.Maximum = 16;
+            this.concurrencyInput.Value = 4;
+            this.panel.Controls.Add(concurrencyLabel);
+            this.panel.Controls.Add(this.concurrencyInput);
             this.panel.Controls.Add(this.checkBoxNoCache);
             this.panel.Controls.Add(this.label1);
             this.panel.Controls.Add(this.InputMaxDownloadNum);
@@ -206,7 +220,7 @@
             this.panel.Controls.Add(label2);
             this.panel.Location = new System.Drawing.Point(12, 73);
             this.panel.Name = "panel";
-            this.panel.Size = new System.Drawing.Size(526, 157);
+            this.panel.Size = new System.Drawing.Size(526, 185);
             this.panel.TabIndex = 6;
             // 
             // label1
@@ -323,8 +337,9 @@
             // 
             // textBox
             // 
+            this.textBox.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
             this.textBox.HideSelection = false;
-            this.textBox.Location = new System.Drawing.Point(12, 236);
+            this.textBox.Location = new System.Drawing.Point(12, 264);
             this.textBox.Multiline = true;
             this.textBox.Name = "textBox";
             this.textBox.ReadOnly = true;
@@ -368,7 +383,7 @@
             this.AcceptButton = this.ButtonUpdateList;
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(920, 553);
+            this.ClientSize = new System.Drawing.Size(920, 581);
             this.Controls.Add(this.ButtonUpdateList);
             this.Controls.Add(this.ButtonRemoveArtist);
             this.Controls.Add(this.ButtonAddArtist);
@@ -389,6 +404,7 @@
             this.Text = "Furaffinity Downloader";
             this.panel.ResumeLayout(false);
             this.panel.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.concurrencyInput)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
